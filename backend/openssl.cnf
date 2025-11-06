@@ -1,0 +1,23 @@
+# backend/openssl.cnf
+
+[req]
+default_bits       = 2048
+distinguished_name = req_distinguished_name
+x509_extensions    = v3_req
+prompt             = no
+
+[req_distinguished_name]
+C            = NZ
+ST           = Auckland
+L            = Auckland
+O            = Dev
+OU           = Localhost
+CN           = localhost
+
+[v3_req]
+keyUsage = keyEncipherment, dataEncipherment
+extendedKeyUsage = serverAuth
+subjectAltName = @alt_names
+
+[alt_names]
+DNS.1 = localhost

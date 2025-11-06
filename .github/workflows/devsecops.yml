@@ -1,0 +1,104 @@
+name: DevSecOps
+
+on:
+  push:
+    branches: [ main, develop, feature/** ]
+  pull_request:
+    branches: [ main, develop ]
+
+permissions:
+  contents: read
+
+jobs:
+  frontend:
+    name: Frontend (Vite)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install
+        run: npm ci || npm install
+
+      - name: Lint
+        run: |
+          if npm run | grep -q "^ *lint"; then
+            npm run lint
+          else
+            echo "No lint script, skipping"
+          fi
+
+      - name: Typecheck
+        run: |
+          if npm run | grep -q "^ *typecheck"; then
+            npm run typecheck
+          else
+            echo "No typecheck script, skipping"
+          fi
+
+      - name: Build
+        run: |
+          if npm run | grep -q "^ *build"; then
+            npm run build
+          else
+            echo "No build script, skipping"
+          fi
+
+      - name: Audit (prod deps)
+        run: npm audit --production --audit-level=high || exit 1
+
+  backend:
+    name: Backend (Express HTTPS)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install
+        run: npm ci || npm install
+
+      - name: Lint
+        run: |
+          if npm run | grep -q "^ *lint"; then
+            npm run lint
+          else
+            echo "No lint script, skipping"
+          fi
+
+      - name: Typecheck
+        run: |
+          if npm run | grep -q "^ *typecheck"; then
+            npm run typecheck
+          else
+            echo "No typecheck script, skipping"
+          fi
+
+      - name: Unit build smoke (optional)
+        run: |
+          if npm run | grep -q "^ *build"; then
+            npm run build
+          else
+            echo "No build script, skipping"
+          fi
+
+      - name: Audit (prod deps)
+        run: npm audit --production --audit-level=high || exit 1
