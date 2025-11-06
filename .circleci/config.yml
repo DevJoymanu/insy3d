@@ -14,7 +14,7 @@ jobs:
   # Job 1: Install dependencies and run tests
   test:
     docker:
-      - image: cimg/node:22.12
+      - image: cimg/node:20.11
     steps:
       - checkout
       
