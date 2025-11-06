@@ -46,7 +46,6 @@ async function ensureUser(seed) {
 async function run() {
   try {
     for (const seed of seedUsers) {
-      // eslint-disable-next-line no-await-in-loop
       await ensureUser(seed);
     }
     console.log("[seed] Completed user seeding.");
