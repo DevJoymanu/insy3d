@@ -151,16 +151,15 @@ jobs:
           name: Check for Hardcoded Secrets
           command: |
             echo "Scanning for hardcoded secrets..."
-            # Check for potential API keys
-            if grep -r "api[_-]key\s*=\s*['\"][a-zA-Z0-9]" src/ backend/ 2>/dev/null; then
+            # Only scan your source code
+            if grep -r --exclude-dir=node_modules "api[_-]key\s*=\s*['\"][a-zA-Z0-9]" src/ backend/ 2>/dev/null; then
               echo "❌ Hardcoded API keys detected!"
               exit 1
             else
               echo "✅ No hardcoded API keys found"
             fi
-            
-            # Check for passwords in code
-            if grep -r "password\s*=\s*['\"][^'\"]*['\"]" src/ backend/ 2>/dev/null; then
+
+            if grep -r --exclude-dir=node_modules "password\s*=\s*['\"][^'\"]*['\"]" src/ backend/ 2>/dev/null; then
               echo "❌ Hardcoded passwords detected!"
               exit 1
             else
