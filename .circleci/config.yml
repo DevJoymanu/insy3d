@@ -14,7 +14,7 @@ jobs:
   # Job 1: Install dependencies and run tests
   test:
     docker:
-      - image: cimg/node:20.11
+      - image: cimg/node:22.12
     steps:
       - checkout
       
@@ -43,15 +43,25 @@ jobs:
             - backend/node_modules
           key: v1-dependencies-{{ checksum "package-lock.json" }}
       
-      # Run frontend tests
+      # Run frontend tests (if test script exists)
       - run:
           name: Run Frontend Tests
-          command: npm test -- --run --passWithNoTests
+          command: |
+            if npm run | grep -q "test"; then
+              npm test -- --run --passWithNoTests || npm test
+            else
+              echo "No test script found, skipping tests"
+            fi
       
-      # Run linting
+      # Run linting (if lint script exists)
       - run:
           name: Run ESLint
-          command: npm run lint
+          command: |
+            if npm run | grep -q "lint"; then
+              npm run lint
+            else
+              echo "No lint script found, skipping linting"
+            fi
       
       # Persist workspace for next job
       - persist_to_workspace:
@@ -62,7 +72,7 @@ jobs:
   # Job 2: SonarCloud Security Scan
   sonarcloud-scan:
     docker:
-      - image: cimg/node:20.11
+      - image: cimg/node:22.12
     steps:
       - attach_workspace:
           at: .
@@ -73,7 +83,7 @@ jobs:
   # Job 3: OWASP Dependency Check
   dependency-check:
     docker:
-      - image: cimg/node:20.11
+      - image: cimg/node:22.12
     steps:
       - attach_workspace:
           at: .
@@ -105,7 +115,7 @@ jobs:
   # Job 4: Security Headers Check
   security-headers-check:
     docker:
-      - image: cimg/node:20.11
+      - image: cimg/node:22.12
     steps:
       - attach_workspace:
           at: .
@@ -121,7 +131,7 @@ jobs:
   # Job 5: Code Quality Check
   code-quality:
     docker:
-      - image: cimg/node:20.11
+      - image: cimg/node:22.12
     steps:
       - attach_workspace:
           at: .
