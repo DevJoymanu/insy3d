@@ -1,0 +1,192 @@
+version: 2.1
+
+# ============================================
+# ORBS - Pre-packaged CircleCI configurations
+# ============================================
+orbs:
+  node: circleci/node@5.1.0
+  sonarcloud: sonarsource/sonarcloud@2.0.0
+
+# ============================================
+# JOBS - Define what to do
+# ============================================
+jobs:
+  # Job 1: Install dependencies and run tests
+  test:
+    docker:
+      - image: cimg/node:20.11
+    steps:
+      - checkout
+      
+      # Restore cached dependencies
+      - restore_cache:
+          keys:
+            - v1-dependencies-{{ checksum "package-lock.json" }}
+            - v1-dependencies-
+      
+      # Install frontend dependencies
+      - run:
+          name: Install Frontend Dependencies
+          command: npm ci
+      
+      # Install backend dependencies
+      - run:
+          name: Install Backend Dependencies
+          command: |
+            cd backend
+            npm ci
+      
+      # Save dependencies to cache
+      - save_cache:
+          paths:
+            - node_modules
+            - backend/node_modules
+          key: v1-dependencies-{{ checksum "package-lock.json" }}
+      
+      # Run frontend tests
+      - run:
+          name: Run Frontend Tests
+          command: npm test -- --run --passWithNoTests
+      
+      # Run linting
+      - run:
+          name: Run ESLint
+          command: npm run lint
+      
+      # Persist workspace for next job
+      - persist_to_workspace:
+          root: .
+          paths:
+            - .
+
+  # Job 2: SonarCloud Security Scan
+  sonarcloud-scan:
+    docker:
+      - image: cimg/node:20.11
+    steps:
+      - attach_workspace:
+          at: .
+      
+      # Run SonarCloud scan
+      - sonarcloud/scan
+
+  # Job 3: OWASP Dependency Check
+  dependency-check:
+    docker:
+      - image: cimg/node:20.11
+    steps:
+      - attach_workspace:
+          at: .
+      
+      # Audit frontend dependencies
+      - run:
+          name: NPM Audit Frontend
+          command: |
+            npm audit --audit-level=high || true
+            npm audit --json > frontend-audit.json || true
+      
+      # Audit backend dependencies
+      - run:
+          name: NPM Audit Backend
+          command: |
+            cd backend
+            npm audit --audit-level=high || true
+            npm audit --json > ../backend-audit.json || true
+      
+      # Store audit results
+      - store_artifacts:
+          path: frontend-audit.json
+          destination: security/frontend-audit.json
+      
+      - store_artifacts:
+          path: backend-audit.json
+          destination: security/backend-audit.json
+
+  # Job 4: Security Headers Check
+  security-headers-check:
+    docker:
+      - image: cimg/node:20.11
+    steps:
+      - attach_workspace:
+          at: .
+      
+      - run:
+          name: Check Security Headers Configuration
+          command: |
+            echo "Checking backend security configuration..."
+            grep -r "helmet" backend/ || echo "Warning: Helmet not found"
+            grep -r "cors" backend/ || echo "Warning: CORS config not found"
+            grep -r "rate.*limit" backend/ || echo "Warning: Rate limiting not found"
+
+  # Job 5: Code Quality Check
+  code-quality:
+    docker:
+      - image: cimg/node:20.11
+    steps:
+      - attach_workspace:
+          at: .
+      
+      - run:
+          name: Check for Hardcoded Secrets
+          command: |
+            echo "Scanning for hardcoded secrets..."
+            # Check for potential API keys
+            ! grep -r "api[_-]key\s*=\s*['\"][a-zA-Z0-9]" src/ backend/ || exit 1
+            # Check for passwords in code
+            ! grep -r "password\s*=\s*['\"][^'\"]*['\"]" src/ backend/ || exit 1
+            echo "No hardcoded secrets detected"
+      
+      - run:
+          name: Check for Console Logs
+          command: |
+            echo "Checking for console statements..."
+            grep -r "console\." src/ || echo "Clean - no console statements"
+
+# ============================================
+# WORKFLOWS - Define when to run jobs
+# ============================================
+workflows:
+  version: 2
+  
+  # Main security pipeline
+  security-pipeline:
+    jobs:
+      # Run tests first
+      - test
+      
+      # Run security scans in parallel after tests pass
+      - sonarcloud-scan:
+          requires:
+            - test
+          context: sonarcloud
+      
+      - dependency-check:
+          requires:
+            - test
+      
+      - security-headers-check:
+          requires:
+            - test
+      
+      - code-quality:
+          requires:
+            - test
+  
+  # Nightly comprehensive scan
+  nightly-scan:
+    triggers:
+      - schedule:
+          cron: "0 2 * * *"  # Run at 2 AM every day
+          filters:
+            branches:
+              only:
+                - main
+    jobs:
+      - test
+      - sonarcloud-scan:
+          requires:
+            - test
+          context: sonarcloud
+      - dependency-check:
+          requires:
+            - test
