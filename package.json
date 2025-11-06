@@ -7,13 +7,9 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    // ✅ CI-safe test (non-watch)
     "test": "vitest run --passWithNoTests --silent",
-    // ✅ Local dev test watch mode
     "test:watch": "vitest",
-    // ✅ Coverage mode (for CI reports)
     "test:coverage": "vitest run --coverage",
-    // ✅ Strict linting with ESLint 9
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0"
   },
   "dependencies": {
