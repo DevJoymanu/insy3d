@@ -42,10 +42,9 @@ jobs:
           name: Run Frontend Tests
           command: |
             if npm run | grep -q "test"; then
-              npm test -- --watchAll=false --passWithNoTests --silent
+              npm test
             else
               echo "No test script found, skipping tests"
-              # Create minimal coverage file for SonarCloud
               mkdir -p coverage
               echo '{"version":"1.1.0","script":{"name":"empty"},"result":{"lines":{"found":0,"hit":0,"details":[]}}}' > coverage/lcov.info
             fi
